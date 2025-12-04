@@ -49,7 +49,6 @@ bot.command("queromassagem", async (ctx) => {
 bot.command("vermassagistas", async (ctx) => {
   try {
     const sheets = await getSheetsClient();
-    console.log(process.env.GOOGLE_SHEETS_ID);
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Massagistas!A2:G",
