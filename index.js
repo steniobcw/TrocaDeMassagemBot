@@ -88,30 +88,88 @@ bot.command("vermassagistas", async (ctx) => {
 // ---------------- COMMAND: /soumassagista ----------------
 bot.command("soumassagista", async (ctx) => {
   ctx.reply(
-    "Vamos cadastrar você! Envie seus dados exatamente no formato:\n\n" +
-      "Nome - ContatoTelegram - Telefone - Modalidades - AtendeDomicilio - LocalProprio - Bairros\n\n" +
-      "Exemplo:\nJoão Silva - @joaomassagem - 31999998888 - Relaxante, Tantra - Sim - Não - Funcionários, Savassi"
+    "Vamos cadastrar você! \n\n" +
+      "Por favor, responda **copiando e preenchendo** o modelo abaixo:\n\n" +
+      "Nome: [seu nome completo]\n" +
+      "ContatoTelegram: [@seuusuario]\n" +
+      "Telefone: [número de contato, preferencialmente WhatsApp]\n" +
+      "Modalidades: [modalidades separadas por vírgula]\n" +
+      "AtendeDomicilio: [Sim/Não]\n" +
+      "LocalProprio: [Sim/Não]\n" +
+      "Bairros: [bairros onde atende, separados por vírgula]\n\n" +
+      "Exemplo:\n" +
+      "Nome: João Silva\n" +
+      "ContatoTelegram: @joaomassagem\n" +
+      "Telefone: 31999998888\n" +
+      "Modalidades: Relaxante, Tântrica\n" +
+      "AtendeDomicilio: Sim\n" +
+      "LocalProprio: Não\n" +
+      "Bairros: Funcionários, Savassi"
   );
 });
-
+/*
+//descobrir chat id
+bot.on("message", (ctx) => {
+  console.log("CHAT ID:", ctx.chat.id);
+});
+*/
 // ---------------- ON MESSAGE (data entry) ----------------
 bot.on("text", async (ctx) => {
   const text = ctx.message.text;
 
-  if (!text.includes(" - ")) return;
+  // Verificamos se contém as palavras-chave dos campos
+  if (
+    !text.includes("Nome:") ||
+    !text.includes("ContatoTelegram:") ||
+    !text.includes("Telefone:") ||
+    !text.includes("Modalidades:") ||
+    !text.includes("AtendeDomicilio:") ||
+    !text.includes("LocalProprio:") ||
+    !text.includes("Bairros:")
+  ) {
+    return;
+  }
 
-  const parts = text.split(" - ");
-  if (parts.length !== 7) return;
+  // Separar por linhas
+  const lines = text.split("\n").map((l) => l.trim());
+  let dados = {};
+  lines.forEach((linha) => {
+    if (linha.startsWith("Nome:"))
+      dados.nome = linha.replace("Nome:", "").trim();
 
-  const [
-    nome,
-    contatoTelegram,
-    telefone,
-    modalidades,
-    atendeDomicilio,
-    localProprio,
-    bairros,
-  ] = parts.map((v) => v.trim());
+    if (linha.startsWith("ContatoTelegram:"))
+      dados.contatoTelegram = linha.replace("ContatoTelegram:", "").trim();
+
+    if (linha.startsWith("Telefone:"))
+      dados.telefone = linha.replace("Telefone:", "").trim();
+
+    if (linha.startsWith("Modalidades:"))
+      dados.modalidades = linha.replace("Modalidades:", "").trim();
+
+    if (linha.startsWith("AtendeDomicilio:"))
+      dados.atendeDomicilio = linha.replace("AtendeDomicilio:", "").trim();
+
+    if (linha.startsWith("LocalProprio:"))
+      dados.localProprio = linha.replace("LocalProprio:", "").trim();
+
+    if (linha.startsWith("Bairros:"))
+      dados.bairros = linha.replace("Bairros:", "").trim();
+  });
+
+  // Validar se todos os campos existem
+  const camposObrigatorios = [
+    "nome",
+    "contatoTelegram",
+    "atendeDomicilio",
+    "localProprio",
+  ];
+
+  for (let campo of camposObrigatorios) {
+    if (!dados[campo] || dados[campo].length === 0) {
+      ctx.reply(`⚠️ O campo *${campo}* não foi preenchido corretamente.`);
+      return;
+    }
+  }
 
   try {
     const sheets = await getSheetsClient();
@@ -138,7 +196,7 @@ bot.on("text", async (ctx) => {
     ctx.reply("✔️ Seus dados foram cadastrados com sucesso!");
   } catch (err) {
     console.error(err);
-    ctx.reply("Erro ao salvar seus dados.");
+    ctx.reply("❌ Erro ao salvar seus dados. Tente novamente mais tarde.");
   }
 });
 // Mensagem automática quando alguém entra no grupo
@@ -147,21 +205,55 @@ bot.on("new_chat_members", async (ctx) => {
 
   for (const membro of novos) {
     const nome = membro.first_name || "visitante";
-
-    await ctx.reply(
-      `👋 Olá, *${nome}*!\n\nBem-vindo(a) ao grupo de troca de massagem!\n
+    const mensagem = `👋 Olá, *${nome}*!\n\nBem-vindo(a) ao grupo de troca de massagem!\n
 Aqui você pode:\n
 Receber o relaxamento que tanto proporciona aos seus clientes.\n
 Encontrar alguem disposto a ser modelo para praticar em seus cursos.\n
 Aprender e compartilhar tecnicas e procedimentos de massoterapia.\n
 Entre outras coisas!\n\n
 Se precisar de ajuda, digite /queromassagem para ver os comandos disponíveis.\n\n
-Fique à vontade! 😉`,
-      { parse_mode: "Markdown" }
-    );
+Fique à vontade! 😉`;
+    await ctx.reply(mensagem, { parse_mode: "Markdown" });
   }
 });
 
 // ---------------- START BOT ----------------
 bot.launch();
-console.log("Bot rodando...");
+bot.telegram.getMe().then(() => {
+  console.log("Bot iniciado com sucesso!");
+  const mensagens = [
+    "👋 Olá!\n 🤖 Sou um robó massagista e foi iniciado agora. Segue as mensagens pendentes das solicitações feitas enquanto eu estava inativo! Agora que estou acordado posso responder rapidamente.",
+    "👋 Olá",
+  ];
+  const nm = Math.random() < 0.1 ? 1 : 0;
+  bot.telegram.sendMessage(process.env.ADMIN_CHAT_ID, mensagens[nm]);
+});
+
+// Enviar mensagem ao desligar o bot
+
+const sendShutdownMessage = async () => {
+  try {
+    const mensagens = [
+      "👋 ⚠️ Estou sendo desligado! Se fizerem soliciatações enquanto estou offline, não poderei respondê-las até que eu seja reiniciado. mas continuem interagindo entre vocês! façam boas massagens e relaxem!",
+      "👋 Tcháu",
+    ];
+    const nm = Math.random() < 0.1 ? 1 : 0;
+    await bot.telegram.sendMessage(process.env.ADMIN_CHAT_ID, mensagens[nm]);
+  } catch (err) {
+    console.log("Não foi possível enviar mensagem ao desligar:", err.message);
+  }
+};
+
+// Captura encerramento manual (Ctrl + C)
+process.on("SIGINT", async () => {
+  console.log("Encerrando com SIGINT...");
+  await sendShutdownMessage();
+  process.exit(0);
+});
+
+// Encerramento pelo sistema
+process.on("SIGTERM", async () => {
+  console.log("Encerrando com SIGTERM...");
+  await sendShutdownMessage();
+  process.exit(0);
+});
